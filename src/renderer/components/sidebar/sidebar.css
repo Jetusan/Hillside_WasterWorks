@@ -1,0 +1,118 @@
+/* ============================================ */
+/* SIDEBAR - PREMIUM DESIGN                     */
+/* ============================================ */
+
+.sidebar-container {
+    width: 240px;
+    height: 100vh;
+    background: #1e293b;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ----- Brand Header ----- */
+.sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ----- Navigation Menu ----- */
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+    overflow-y: auto;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.75rem 1.5rem;
+    margin: 0.25rem 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.menu-item.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.menu-icon {
+    font-size: 1.2rem;
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ----- Logout Section ----- */
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0.75rem;
+    color: white;
+    background: #dc2626;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.2s ease;
+}
+
+.logout-button:hover {
+    background: #b91c1c;
+}
+
+/* ----- Responsive Design ----- */
+@media (max-width: 768px) {
+    .sidebar-container {
+        width: 70px;
+    }
+    
+    .sidebar-header h2 span:last-child {
+        display: none;
+    }
+    
+    .menu-label {
+        display: none;
+    }
+    
+    .menu-item {
+        justify-content: center;
+        padding: 0.75rem;
+    }
+    
+    .logout-button span:last-child {
+        display: none;
+    }
+}
