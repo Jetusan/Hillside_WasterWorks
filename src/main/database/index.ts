@@ -14,23 +14,55 @@ let userRepo: UserRepository | null = null;
 let customerRepo: CustomerRepository | null = null;
 let billRepo: BillRepository | null = null;
 let paymentRepo: PaymentRepository | null = null;
-const dbPath = path.join(app.getPath('userData'), 'billing.db');
+
+// ✅ Add this to track db changes
+function setDb(newDb: Database | null, source: string) {
+    console.log(`🔵🔵🔵 DATABASE SET from: ${source} 🔵🔵🔵`);
+    console.log(`🔵 Old DB: ${(db as any)?.filename || 'null'}`);
+    console.log(`🔵 New DB: ${(newDb as any)?.filename || 'null'}`);
+    db = newDb;
+}
+
+// ✅ FIX: Use a more reliable, consistent database path
+// Priority: 1) env DB_PATH → 2) app.getPath('userData') → 3) process.cwd() fallback
+function getDatabasePath(): string {
+    // Check for environment variable first (useful for development)
+    if (process.env.DB_PATH) {
+        console.log('📁 Using DB_PATH from environment:', process.env.DB_PATH);
+        return process.env.DB_PATH;
+    }
+    
+    // Get userData path from Electron
+    const userDataPath = app?.getPath?.('userData') || process.cwd();
+    console.log('📁 app.getPath("userData"):', userDataPath);
+    
+    // Construct the database path
+    const dbPath = path.join(userDataPath, 'billing.db');
+    console.log('📁 Resolved database path:', dbPath);
+    
+    return dbPath;
+}
+
+// ✅ Store the path once at module level
+const dbPath = typeof app !== 'undefined' ? getDatabasePath() : '';
 
 export async function initDatabase(): Promise<Database> {
     if (db) return db;
     
-    console.log('📁 Database path:', dbPath);
+    // ✅ Get the database path at runtime (after app is ready)
+    const resolvedDbPath = getDatabasePath();
+    console.log('📁 Database path:', resolvedDbPath);
     
     const SQL = await initSqlJs();
     
     // Load or create database
-    if (fs.existsSync(dbPath)) {
-        const fileBuffer = fs.readFileSync(dbPath);
+    if (fs.existsSync(resolvedDbPath)) {
+        const fileBuffer = fs.readFileSync(resolvedDbPath);
         db = new SQL.Database(fileBuffer);
-        console.log('✅ Database loaded from file');
+        console.log('✅ Database loaded from file:', resolvedDbPath);
     } else {
         db = new SQL.Database();
-        console.log('✅ New database created');
+        console.log('✅ New database created at:', resolvedDbPath);
     }
     
     // Create users table
@@ -153,10 +185,18 @@ export async function initDatabase(): Promise<Database> {
 
     export function saveDatabase(): void {
         if (!db) return;
+        const resolvedDbPath = getDatabasePath();
         const data = db.export();
         const buffer = Buffer.from(data);
-        fs.writeFileSync(dbPath, buffer);
-        console.log('💾 Database saved to disk');
+        
+        // Ensure directory exists
+        const dir = path.dirname(resolvedDbPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        fs.writeFileSync(resolvedDbPath, buffer);
+        console.log('💾 Database saved to disk:', resolvedDbPath);
     }
 
     export function getDatabase(): Database {
@@ -176,6 +216,8 @@ export async function initDatabase(): Promise<Database> {
 
     export function getBillRepository(): BillRepository {
         if (!billRepo) throw new Error('Database not initialized');
+        console.log('🔴 getBillRepository - DB filename:', (db as any)?.filename || 'db is null!');
+        console.log('🔴 billRepo.db filename:', (billRepo as any)?.db?.filename || 'no db in repo');
         return billRepo;
     }
 

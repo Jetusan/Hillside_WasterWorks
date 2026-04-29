@@ -57,12 +57,16 @@ export class BillService {
     }
     
     async getLastReading(customerId: number) {
+        console.log('🔴 BillService.getLastReading called, customerId:', customerId);
         const billRepo = getBillRepository();
+        console.log('🔴 BillService.getLastReading - got billRepo');
         return billRepo.getLastReading(customerId);
     }
     
     async getCustomerArrears(customerId: number) {
+        console.log('🔴 BillService.getCustomerArrears called, customerId:', customerId);
         const billRepo = getBillRepository();
+        console.log('🔴 BillService.getCustomerArrears - got billRepo');
         return billRepo.getCustomerArrears(customerId);
     }
     

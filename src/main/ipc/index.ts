@@ -6,13 +6,16 @@ import { BillService } from '../services/billingServices';
 import {PaymentService} from '../services/paymentServices';
 import { LoginCredentials, AuthResponse } from '../../shared/types/auth';
 
-
-const authService = new AuthService();
-const customerService = new CustomerService();  
-const billService = new BillService();
-const paymentService = new PaymentService();
-
 export function registerAllHandlers(): void {
+    console.log('📝 Registering IPC handlers...');
+    
+    // ✅ Services created AFTER database is ready
+    const authService = new AuthService();
+    const customerService = new CustomerService();  
+    const billService = new BillService();
+    const paymentService = new PaymentService();
+    
+    console.log('✅ Services initialized');
 
     // ===== AUTH HANDLERS =====
     ipcMain.handle('auth:login', async (_, credentials: LoginCredentials) => {
@@ -20,7 +23,6 @@ export function registerAllHandlers(): void {
             console.log(`📨 IPC: auth:login - ${credentials.username}`);
             const result = await authService.login(credentials);
             
-            // Log the result
             if (result.success) {
                 console.log(`✅ IPC: Login successful for ${credentials.username}`);
             } else {
@@ -107,6 +109,70 @@ export function registerAllHandlers(): void {
         return await customerService.getCustomerCount();
     });
 
+    // ===== BILL HANDLERS (WITH DEBUG LOGGING) =====
+    ipcMain.handle('bill:calculate', async (_, prev, curr, discount, penalty) => {
+        console.log('🔵 bill:calculate called:', { prev, curr, discount, penalty });
+        return billService.calculatePreview(prev, curr, discount, penalty);
+    });
+
+    ipcMain.handle('bill:create', async (_, data) => {
+        console.log('🔵 bill:create called:', data);
+        return await billService.createBill(data);
+    });
+
+    ipcMain.handle('bill:getByCustomer', async (_, customerId) => {
+        console.log('🔵 bill:getByCustomer called, customerId:', customerId);
+        return await billService.getCustomerBills(customerId);
+    });
+
+    ipcMain.handle('bill:getRecent', async (_, limit) => {
+        console.log('🔵 bill:getRecent called, limit:', limit);
+        return await billService.getRecentBills(limit || 50);
+    });
+
+    ipcMain.handle('bill:getById', async (_, id) => {
+        console.log('🔵 bill:getById called, id:', id);
+        return await billService.getBillById(id);
+    });
+
+    ipcMain.handle('bill:getLastReading', async (_, customerId) => {
+        console.log('🔵🔵🔵 bill:getLastReading CALLED 🔵🔵🔵');
+        console.log('🔵 customerId:', customerId);
+        console.log('🔵 customerId type:', typeof customerId);
+        
+        try {
+            const result = await billService.getLastReading(customerId);
+            console.log('🔵 getLastReading RESULT:', result);
+            console.log('🔵 result type:', typeof result);
+            return result;
+        } catch (error) {
+            console.error('🔵 getLastReading ERROR:', error);
+            return 0;
+        }
+    });
+
+    ipcMain.handle('bill:getArrears', async (_, customerId) => {
+        console.log('🔵 bill:getArrears called, customerId:', customerId);
+        try {
+            const result = await billService.getCustomerArrears(customerId);
+            console.log('🔵 getArrears result:', result);
+            return result;
+        } catch (error) {
+            console.error('🔵 getArrears ERROR:', error);
+            return 0;
+        }
+    });
+
+    ipcMain.handle('bill:getBillingPeriod', async (_, date) => {
+        console.log('🔵 bill:getBillingPeriod called, date:', date);
+        return billService.getBillingPeriod(date);
+    });
+
+    ipcMain.handle('bill:getDueDate', async (_, billingDate) => {
+        console.log('🔵 bill:getDueDate called, billingDate:', billingDate);
+        return billService.getDueDate(billingDate);
+    });
+
     // ===== PAYMENT HANDLERS =====
     ipcMain.handle('payment:process', async (_, data) => {
         return await paymentService.processPayment(data);
@@ -131,41 +197,6 @@ export function registerAllHandlers(): void {
     ipcMain.handle('payment:getCustomerBalance', async (_, customerId: number) => {
         return await paymentService.getCustomerBalance(customerId);
     });
-
-    // Inside registerAllHandlers():
-    ipcMain.handle('bill:calculate', async (_, prev, curr, discount, penalty) => {
-        return billService.calculatePreview(prev, curr, discount, penalty);
-    });
-
-    ipcMain.handle('bill:create', async (_, data) => {
-        return await billService.createBill(data);
-    });
-
-    ipcMain.handle('bill:getByCustomer', async (_, customerId) => {
-        return await billService.getCustomerBills(customerId);
-    });
-
-    ipcMain.handle('bill:getRecent', async (_, limit) => {
-        return await billService.getRecentBills(limit || 50);
-    });
-
-    ipcMain.handle('bill:getById', async (_, id) => {
-        return await billService.getBillById(id);
-    });
-
-    ipcMain.handle('bill:getLastReading', async (_, customerId) => {
-        return await billService.getLastReading(customerId);
-    });
-
-    ipcMain.handle('bill:getArrears', async (_, customerId) => {
-        return await billService.getCustomerArrears(customerId);
-    });
-
-    ipcMain.handle('bill:getBillingPeriod', async (_, date) => {
-        return billService.getBillingPeriod(date);
-    });
-
-    ipcMain.handle('bill:getDueDate', async (_, billingDate) => {
-        return billService.getDueDate(billingDate);
-    });
+    
+    console.log('✅ All IPC handlers registered successfully');
 }

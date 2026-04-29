@@ -151,9 +151,10 @@ export class BillRepository {
             FROM bills 
             WHERE customer_id = ?
         `);
-        stmt.bind([customerId]);
-        const result = stmt.getAsObject() as any;
+        const result = stmt.getAsObject([customerId]) as any;
         stmt.free();
+        
+        console.log('🔴 getCustomerArrears - Query result:', result);
         
         return (result.total_due || 0) - (result.total_paid || 0);
     }
@@ -163,12 +164,13 @@ export class BillRepository {
             SELECT current_reading 
             FROM bills 
             WHERE customer_id = ? 
-            ORDER BY billing_date DESC 
+            ORDER BY id DESC 
             LIMIT 1
         `);
-        stmt.bind([customerId]);
-        const result = stmt.getAsObject() as any;
+        const result = stmt.getAsObject([customerId]) as any;
         stmt.free();
+        
+        console.log('🔴 getLastReading - Query result:', result);
         
         return result.current_reading || 0;
     }

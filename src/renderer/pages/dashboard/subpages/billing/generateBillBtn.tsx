@@ -57,48 +57,56 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
     const inputRefs = useRef<Record<string, HTMLInputElement>>({});
 
     const handleClusterSelect = async (clusterLetter: string) => {
-        setSelectedCluster(clusterLetter);
-        setClusterCustomers([]);
-        setSelectedRows({});
-        setSelectAll(false);
+    setSelectedCluster(clusterLetter);
+    setClusterCustomers([]);
+    setSelectedRows({});
+    setSelectAll(false);
 
-        if (!clusterLetter) return;
+    if (!clusterLetter) return;
 
-        const filtered = customers.filter(c => c.cluster.charAt(0) === clusterLetter);
-        
-        const entries = await Promise.all(
-            filtered.map(async (customer) => {
-                try {
-                    const lastReading = await window.electronAPI.bills.getLastReading(customer.id);
-                    const arrears = await window.electronAPI.bills.getArrears(customer.id);
-                    
-                    return {
-                        id: customer.id.toString(),
-                        customer_id: customer.id,
-                        customer_name: customer.customer_name,
-                        meter_number: customer.meter_number,
-                        previous_reading: lastReading,
-                        current_reading: '',
-                        usage: 0,
-                        discount: '0',
-                        penalty: '0',
-                        arrears: arrears,
-                        grossAmount: 0,
-                        netAmount: 0,
-                        totalDue: 0,
-                        isCalculated: false,
-                        cluster: customer.cluster,
-                    };
-                } catch (error) {
-                    console.error(`Error loading data for customer ${customer.id}:`, error);
-                    return null;
-                }
-            })
-        );
-        
-        setClusterCustomers(entries.filter(Boolean));
-    };
-
+    const filtered = customers.filter(c => c.cluster.charAt(0) === clusterLetter);
+    console.log('🔍 Selected cluster:', clusterLetter);
+    console.log('🔍 Filtered customers:', filtered);
+    
+    const entries = await Promise.all(
+        filtered.map(async (customer) => {
+            try {
+                // STEP 1: Check if we're calling the API
+                console.log(`📞 Calling getLastReading for customer ${customer.id} (${customer.customer_name})`);
+                
+                const lastReading = await window.electronAPI.bills.getLastReading(customer.id);
+                console.log(`✅ getLastReading returned:`, lastReading, `(type: ${typeof lastReading})`);
+                
+                const arrears = await window.electronAPI.bills.getArrears(customer.id);
+                console.log(`✅ getArrears returned:`, arrears);
+                
+                return {
+                    id: customer.id.toString(),
+                    customer_id: customer.id,
+                    customer_name: customer.customer_name,
+                    meter_number: customer.meter_number,
+                    previous_reading: lastReading,
+                    current_reading: '',
+                    usage: 0,
+                    discount: '0',
+                    penalty: '0',
+                    arrears: arrears,
+                    grossAmount: 0,
+                    netAmount: 0,
+                    totalDue: 0,
+                    isCalculated: false,
+                    cluster: customer.cluster,
+                };
+            } catch (error) {
+                console.error(`❌ Error loading data for customer ${customer.id}:`, error);
+                return null;
+            }
+        })
+    );
+    
+    console.log('📊 Final cluster customers:', entries);
+    setClusterCustomers(entries.filter(Boolean));
+};
     const calculateBillForRow = useCallback(async (
         rowId: string, 
         currentReading?: string, 
