@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { MdOutlinePayments } from "react-icons/md";
+import { MdOutlineHistory } from "react-icons/md";
 import './payments.css';
 
 interface Payment {
@@ -183,13 +185,6 @@ const Payments: React.FC = () => {
         return <span className={`status-badge ${config.class}`}>{config.label}</span>;
     };
 
-    const paymentMethods = [
-        { value: 'cash', label: 'Cash', icon: '💵' },
-        { value: 'gcash', label: 'GCash', icon: '📱' },
-        { value: 'bank', label: 'Bank Transfer', icon: '🏦' },
-        { value: 'check', label: 'Check', icon: '📝' }
-    ];
-
     return (
         <div className="payments-container">
             <div className="payments-content-wrapper">
@@ -221,14 +216,14 @@ const Payments: React.FC = () => {
                         className={`tab-button ${activeTab === 'entry' ? 'active' : ''}`}
                         onClick={() => setActiveTab('entry')}
                     >
-                        <span className="tab-icon">💳</span>
+                        <span className="tab-icon"><MdOutlinePayments /></span>
                         New Payment
                     </button>
                     <button 
                         className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
                         onClick={() => setActiveTab('history')}
                     >
-                        <span className="tab-icon">📜</span>
+                        <span className="tab-icon"><MdOutlineHistory /></span>
                         Payment History
                     </button>
                 </div>
@@ -372,25 +367,6 @@ const Payments: React.FC = () => {
                                                 step="0.01"
                                                 min="0"
                                             />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">
-                                                <span className="label-icon">💳</span>
-                                                Payment Method
-                                            </label>
-                                            <div className="payment-methods">
-                                                {paymentMethods.map(method => (
-                                                    <button
-                                                        key={method.value}
-                                                        type="button"
-                                                        className={`payment-method-btn ${paymentMethod === method.value ? 'active' : ''}`}
-                                                        onClick={() => setPaymentMethod(method.value)}
-                                                    >
-                                                        <span className="method-icon">{method.icon}</span>
-                                                        <span className="method-label">{method.label}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
                                         </div>
                                     </div>
                                     <button 

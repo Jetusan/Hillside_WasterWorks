@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  createColumnHelper,
-  flexRender,
-  SortingState,
-  ColumnFiltersState,
-} from '@tanstack/react-table';
+import GenerateBillModal from './generateBillBtn';
 import './billing.css';
+import { TbInvoice } from "react-icons/tb";
+import { MdOutlineHistory } from "react-icons/md";
+import { TbFileInvoice } from "react-icons/tb";
+import { IoSearchSharp } from "react-icons/io5";
+import { PiInvoiceLight } from "react-icons/pi";
 
 interface Customer {
     id: number;
@@ -48,15 +43,10 @@ const Billing: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [activeTab, setActiveTab] = useState<'entry' | 'history'>('entry');
     const [searchTerm, setSearchTerm] = useState('');
-
-    // Modal states
     const [showModal, setShowModal] = useState(false);
-    const [selectedCluster, setSelectedCluster] = useState('');
-    const [clusterCustomers, setClusterCustomers] = useState<any[]>([]);
-    const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
-    const [selectAll, setSelectAll] = useState(false);
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+    // Table state (for history tab if needed)
+    const [sorting, setSorting] = useState<any[]>([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
     useEffect(() => {
@@ -83,205 +73,9 @@ const Billing: React.FC = () => {
         return uniqueClusters.sort();
     }, [customers]);
 
-    // Open modal
-    const handleOpenModal = () => {
-        setShowModal(true);
-        setSelectedCluster('');
-        setClusterCustomers([]);
-        setSelectedRows({});
-        setSelectAll(false);
-    };
-
-    // Close modal
-    const handleCloseModal = () => {
-        setShowModal(false);
-        setSelectedCluster('');
-        setClusterCustomers([]);
-    };
-
-    // Load customers for selected cluster letter in modal
-    const handleClusterSelect = async (clusterLetter: string) => {
-        setSelectedCluster(clusterLetter);
-        
-        // Reset table state
-        setClusterCustomers([]);
-        setSelectedRows({});
-        setSelectAll(false);
-
-        // Check if cluster is selected
-        if (!clusterLetter) {
-            return;
-        }
-
-        // FILTER: Get customers where cluster starts with the selected letter
-        const filtered = customers.filter(c => c.cluster.charAt(0) === clusterLetter);
-        
-        console.log('Selected Cluster Letter:', clusterLetter);
-        console.log('Filtered Customers:', filtered);
-
-        // Get last readings and arrears for each FILTERED customer
-        const entries = await Promise.all(
-            filtered.map(async (customer) => {
-                try {
-                    const lastReading = await window.electronAPI.bills.getLastReading(customer.id);
-                    const arrears = await window.electronAPI.bills.getArrears(customer.id);
-                    
-                    return {
-                        id: customer.id.toString(),
-                        customer_id: customer.id,
-                        customer_name: customer.customer_name,
-                        meter_number: customer.meter_number,
-                        previous_reading: lastReading,
-                        current_reading: '',
-                        usage: 0,
-                        discount: '0',
-                        penalty: '0',
-                        arrears: arrears,
-                        grossAmount: 0,
-                        netAmount: 0,
-                        totalDue: 0,
-                        isCalculated: false,
-                        cluster: customer.cluster, // Full cluster name for display
-                    };
-                } catch (error) {
-                    console.error(`Error loading data for customer ${customer.id}:`, error);
-                    return null;
-                }
-            })
-        );
-        
-        const validEntries = entries.filter(Boolean);
-        setClusterCustomers(validEntries);
-    };
-
-    // Calculate bill for a single row using backend
-    const calculateBillForRow = async (rowId: string) => {
-        const row = clusterCustomers.find(c => c.id === rowId);
-        if (!row || !row.current_reading || parseFloat(row.current_reading.toString()) <= row.previous_reading) {
-            setMessage({ type: 'error', text: 'Current reading must be greater than previous reading' });
-            return;
-        }
-
-        try {
-            const result = await window.electronAPI.bills.calculate(
-                row.previous_reading,
-                parseFloat(row.current_reading.toString()),
-                parseFloat(row.discount) || 0,
-                parseFloat(row.penalty) || 0
-            );
-
-            const totalDue = result.totalDue + row.arrears;
-
-            setClusterCustomers(prev =>
-                prev.map(customer =>
-                    customer.id === rowId
-                        ? {
-                              ...customer,
-                              usage: result.usage,
-                              grossAmount: result.grossAmount,
-                              netAmount: result.netAmount,
-                              totalDue: totalDue,
-                              isCalculated: true,
-                          }
-                        : customer
-                )
-            );
-        } catch (error) {
-            console.error('Error calculating bill:', error);
-            setMessage({ type: 'error', text: 'Failed to calculate bill' });
-        }
-    };
-
-    // Calculate all rows
-    const calculateAllBills = async () => {
-        if (clusterCustomers.length === 0) {
-            setMessage({ type: 'error', text: 'No customers to calculate' });
-            return;
-        }
-
-        setLoading(true);
-        for (const customer of clusterCustomers) {
-            if (customer.current_reading && parseFloat(customer.current_reading.toString()) > customer.previous_reading) {
-                await calculateBillForRow(customer.id);
-            }
-        }
-        setMessage({ type: 'success', text: 'Calculated bills for all customers with valid readings' });
-        setLoading(false);
-    };
-
-    // Save all calculated bills
-    const saveAllBills = async () => {
-        const billsToSave = clusterCustomers.filter(c => c.isCalculated);
-
-        if (billsToSave.length === 0) {
-            setMessage({ type: 'error', text: 'No calculated bills to save' });
-            return;
-        }
-
-        setLoading(true);
-        const today = new Date().toISOString().split('T')[0];
-        const period = await window.electronAPI.bills.getBillingPeriod(today);
-        const dueDate = await window.electronAPI.bills.getDueDate(today);
-        
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const bill of billsToSave) {
-            try {
-                const result = await window.electronAPI.bills.create({
-                    customer_id: bill.customer_id,
-                    previous_reading: bill.previous_reading,
-                    current_reading: parseFloat(bill.current_reading.toString()),
-                    discount: parseFloat(bill.discount) || 0,
-                    penalty: parseFloat(bill.penalty) || 0,
-                    billing_date: today,
-                    billing_period: period,
-                    due_date: dueDate,
-                });
-
-                if (result.success) {
-                    successCount++;
-                } else {
-                    errorCount++;
-                }
-            } catch (error) {
-                errorCount++;
-                console.error('Error saving bill:', error);
-            }
-        }
-
-        setMessage({
-            type: successCount > 0 ? 'success' : 'error',
-            text: `Saved ${successCount} bill(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
-        });
-
-        if (successCount > 0) {
-            loadRecentBills();
-            handleCloseModal();
-        }
-
-        setLoading(false);
-    };
-
-    // Handle select all checkbox
-    const handleSelectAll = (checked: boolean) => {
-        setSelectAll(checked);
-        const newSelected: Record<string, boolean> = {};
-        clusterCustomers.forEach(customer => {
-            newSelected[customer.id] = checked;
-        });
-        setSelectedRows(newSelected);
-    };
-
-    // Handle single row selection
-    const handleRowSelect = (rowId: string, checked: boolean) => {
-        setSelectedRows(prev => {
-            const newSelected = { ...prev, [rowId]: checked };
-            const allSelected = clusterCustomers.every(c => newSelected[c.id]);
-            setSelectAll(allSelected);
-            return newSelected;
-        });
-    };
+    // Modal handlers
+    const handleOpenModal = () => setShowModal(true);
+    const handleCloseModal = () => setShowModal(false);
 
     const formatCurrency = (amount: number) => {
         return `₱ ${amount.toFixed(2)}`;
@@ -307,156 +101,6 @@ const Billing: React.FC = () => {
             bill.cluster?.toLowerCase().includes(searchLower) ||
             bill.meter_number?.toLowerCase().includes(searchLower)
         );
-    });
-
-    // Table columns for modal
-    const columnHelper = createColumnHelper<any>();
-    
-    const columns = useMemo(() => [
-        columnHelper.accessor('customer_name', {
-            header: 'Customer Name',
-            cell: info => (
-                <div className="customer-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="customer-avatar-small">
-                        {info.getValue()?.charAt(0).toUpperCase()}
-                    </span>
-                    <span>{info.getValue()}</span>
-                </div>
-            ),
-        }),
-        columnHelper.accessor('meter_number', {
-            header: 'Meter #',
-        }),
-        columnHelper.accessor('previous_reading', {
-            header: 'Previous Reading',
-            cell: info => <span className="reading-value">{info.getValue()}</span>,
-        }),
-        columnHelper.accessor('current_reading', {
-            header: 'Current Reading',
-            cell: info => (
-                <input
-                    type="number"
-                    className="table-input"
-                    value={info.getValue()}
-                    onChange={async (e) => {
-                        const newValue = e.target.value;
-                        const rowId = info.row.original.id;
-                        const prevReading = info.row.original.previous_reading;
-                        
-                        setClusterCustomers(prev =>
-                            prev.map(customer =>
-                                customer.id === rowId
-                                    ? { ...customer, current_reading: newValue, isCalculated: false }
-                                    : customer
-                            )
-                        );
-                        
-                        // Auto-calculate if valid reading entered
-                        const currentVal = parseFloat(newValue);
-                        if (newValue && currentVal > prevReading) {
-                            setTimeout(() => calculateBillForRow(rowId), 100);
-                        }
-                    }}
-                    placeholder="0"
-                />
-            ),
-        }),
-        columnHelper.accessor('discount', {
-            header: 'Discount (cu.m)',
-            cell: info => (
-                <input
-                    type="number"
-                    className="table-input"
-                    value={info.getValue()}
-                    onChange={(e) => {
-                        const newValue = e.target.value;
-                        const rowId = info.row.original.id;
-                        const currentReading = info.row.original.current_reading;
-                        const prevReading = info.row.original.previous_reading;
-                        
-                        setClusterCustomers(prev =>
-                            prev.map(customer =>
-                                customer.id === rowId
-                                    ? { ...customer, discount: newValue, isCalculated: false }
-                                    : customer
-                            )
-                        );
-                        
-                        // Auto-recalculate if valid reading exists
-                        const currentVal = parseFloat(currentReading?.toString() || '0');
-                        if (currentReading && currentVal > prevReading) {
-                            setTimeout(() => calculateBillForRow(rowId), 100);
-                        }
-                    }}
-                    placeholder="0"
-                />
-            ),
-        }),
-        columnHelper.accessor('penalty', {
-            header: 'Penalty (₱)',
-            cell: info => (
-                <input
-                    type="number"
-                    className="table-input"
-                    value={info.getValue()}
-                    onChange={(e) => {
-                        const newValue = e.target.value;
-                        setClusterCustomers(prev =>
-                            prev.map(customer =>
-                                customer.id === info.row.original.id
-                                    ? { ...customer, penalty: newValue, isCalculated: false }
-                                    : customer
-                            )
-                        );
-                    }}
-                    placeholder="0"
-                />
-            ),
-        }),
-        columnHelper.accessor('arrears', {
-            header: 'Arrears',
-            cell: info => formatCurrency(info.getValue()),
-        }),
-        columnHelper.accessor('totalDue', {
-            header: 'Total Due',
-            cell: info => {
-                const value = info.getValue();
-                return value > 0 ? (
-                    <span className="amount-highlight">{formatCurrency(value)}</span>
-                ) : (
-                    <span className="text-muted">—</span>
-                );
-            },
-        }),
-        columnHelper.accessor('isCalculated', {
-            id: 'status',
-            header: 'Status',
-            cell: info => (
-                info.getValue() ? (
-                    <span style={{ color: '#10b981', fontWeight: 500 }}>✓ Calculated</span>
-                ) : (
-                    <span style={{ color: '#9ca3af' }}>—</span>
-                )
-            ),
-            enableSorting: false,
-        }),
-    ], [clusterCustomers]);
-
-    const table = useReactTable({
-        data: clusterCustomers,
-        columns,
-        state: {
-            sorting,
-            columnFilters,
-            globalFilter,
-        },
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onGlobalFilterChange: setGlobalFilter,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
 
     return (
@@ -490,14 +134,14 @@ const Billing: React.FC = () => {
                         className={`tab-button ${activeTab === 'entry' ? 'active' : ''}`}
                         onClick={() => setActiveTab('entry')}
                     >
-                        <span className="tab-icon">📝</span>
+                        <span className="tab-icon"><TbInvoice /></span>
                         Bill Entry
                     </button>
                     <button 
                         className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
                         onClick={() => setActiveTab('history')}
                     >
-                        <span className="tab-icon">📊</span>
+                        <span className="tab-icon"><MdOutlineHistory /></span>
                         Billing History
                     </button>
                 </div>
@@ -510,13 +154,13 @@ const Billing: React.FC = () => {
                                 className="btn-generate-bill"
                                 onClick={handleOpenModal}
                             >
-                                <span>⚡</span> Generate Bill
+                                <span><TbFileInvoice /></span> Generate Bill
                             </button>
                         </div>
 
                         {/* Empty state or recent activity */}
                         <div className="entry-info-card">
-                            <div className="info-icon">💡</div>
+                            <div className="info-icon"><PiInvoiceLight /></div>
                             <h3>Generate New Bills</h3>
                             <p>Click the "Generate Bill" button above to create new bills for customers by cluster.</p>
                         </div>
@@ -527,7 +171,7 @@ const Billing: React.FC = () => {
                         <div className="history-header">
                             <h3 className="section-title">Recent Bills (All Customers)</h3>
                             <div className="search-wrapper">
-                                <span className="search-icon">🔍</span>
+                                <span className="search-icon"><IoSearchSharp /></span>
                                 <input
                                     type="text"
                                     placeholder="Search by invoice, customer, or meter..."
@@ -588,161 +232,13 @@ const Billing: React.FC = () => {
                     </div>
                 )}
 
-                {/* Modal Overlay */}
-                {showModal && (
-                    <div className="modal-overlay" onClick={handleCloseModal}>
-                        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-                            {/* Modal Header */}
-                            <div className="modal-header">
-                                <h2 className="modal-title">Generate Bill</h2>
-                                <button className="modal-close-btn" onClick={handleCloseModal}>×</button>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="modal-body">
-                                {/* Cluster Selection */}
-                                <div className="modal-cluster-selection">
-                                    <label className="modal-label">Select Cluster</label>
-                                    <select 
-                                        className="customer-select"
-                                        onChange={(e) => handleClusterSelect(e.target.value)}
-                                        value={selectedCluster}
-                                    >
-                                        <option value="">-- Choose a cluster --</option>
-                                        {clusters.map((cluster, index) => (
-                                            <option key={index} value={cluster}>
-                                                Cluster {cluster}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Table and Actions */}
-                                {selectedCluster && clusterCustomers.length > 0 && (
-                                    <>
-                                        {/* Bulk Actions */}
-                                        <div className="modal-actions-bar">
-                                            <div className="modal-actions-info">
-                                                <span>{clusterCustomers.length} customer(s) in Cluster {selectedCluster}</span>
-                                            </div>
-                                            <div className="modal-actions-buttons">
-                                                <button
-                                                    className="btn-save-bulk"
-                                                    onClick={saveAllBills}
-                                                    disabled={loading}
-                                                >
-                                                    💾 {loading ? 'Saving...' : 'Save All Bills'}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Table */}
-                                        <div className="table-container">
-                                            <div className="table-toolbar">
-                                                <div className="search-wrapper">
-                                                    <span className="search-icon">🔍</span>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search customers..."
-                                                        value={globalFilter}
-                                                        onChange={(e) => setGlobalFilter(e.target.value)}
-                                                        className="search-input"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="table-scroll">
-                                                <table className="data-table">
-                                                    <thead>
-                                                        {table.getHeaderGroups().map(headerGroup => (
-                                                            <tr key={headerGroup.id}>
-                                                                {headerGroup.headers.map(header => (
-                                                                    <th
-                                                                        key={header.id}
-                                                                        onClick={header.column.getToggleSortingHandler()}
-                                                                        className={header.column.getCanSort() ? 'sortable' : ''}
-                                                                    >
-                                                                        {flexRender(
-                                                                            header.column.columnDef.header,
-                                                                            header.getContext()
-                                                                        )}
-                                                                        {{
-                                                                            asc: ' 🔼',
-                                                                            desc: ' 🔽',
-                                                                        }[header.column.getIsSorted() as string] ?? null}
-                                                                    </th>
-                                                                ))}
-                                                            </tr>
-                                                        ))}
-                                                    </thead>
-                                                    <tbody>
-                                                        {table.getRowModel().rows.map(row => (
-                                                            <tr key={row.id} className={row.original.isCalculated ? 'row-calculated' : ''}>
-                                                                {row.getVisibleCells().map(cell => (
-                                                                    <td key={cell.id}>
-                                                                        {flexRender(
-                                                                            cell.column.columnDef.cell,
-                                                                            cell.getContext()
-                                                                        )}
-                                                                    </td>
-                                                                ))}
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                            {/* Pagination */}
-                                            <div className="pagination-container">
-                                                <div className="pagination-info">
-                                                    Page {table.getState().pagination.pageIndex + 1} of{' '}
-                                                    {table.getPageCount()}
-                                                </div>
-                                                <div className="pagination-buttons">
-                                                    <button
-                                                        className="pagination-btn"
-                                                        onClick={() => table.setPageIndex(0)}
-                                                        disabled={!table.getCanPreviousPage()}
-                                                    >
-                                                        ⏮
-                                                    </button>
-                                                    <button
-                                                        className="pagination-btn"
-                                                        onClick={() => table.previousPage()}
-                                                        disabled={!table.getCanPreviousPage()}
-                                                    >
-                                                        ◀
-                                                    </button>
-                                                    <button
-                                                        className="pagination-btn"
-                                                        onClick={() => table.nextPage()}
-                                                        disabled={!table.getCanNextPage()}
-                                                    >
-                                                        ▶
-                                                    </button>
-                                                    <button
-                                                        className="pagination-btn"
-                                                        onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                                                        disabled={!table.getCanNextPage()}
-                                                    >
-                                                        ⏭
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {selectedCluster && clusterCustomers.length === 0 && (
-                                    <div className="empty-state">
-                                        <span className="empty-icon">🏘️</span>
-                                        <p>No customers found in Cluster {selectedCluster}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <GenerateBillModal
+                    isOpen={showModal}
+                    onClose={handleCloseModal}
+                    customers={customers}
+                    clusters={clusters}
+                    onSave={loadRecentBills}
+                />
             </div>
         </div>
     );

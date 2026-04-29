@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 
+
 interface Customer {
     id: number;
     cluster: string;
@@ -96,7 +97,7 @@ const AddCustomerModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, custome
                                 placeholder="Enter meter number" required disabled={isSubmitting} />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Cluster *</label>
+                            <label className="form-label">Cluster</label>
                             <select name="cluster" value={newCustomer.cluster}
                                 onChange={handleInputChange} className="form-select"
                                 required disabled={isSubmitting}>

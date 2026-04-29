@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LuEyeClosed } from "react-icons/lu";
+import { RxEyeOpen } from "react-icons/rx";
 import './login.css';
 
 function Login() {
@@ -165,7 +167,7 @@ function Login() {
                                 tabIndex={-1}
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
-                                {showPassword ? '👁️' : '👁️‍🗨️'}
+                                {showPassword ? <RxEyeOpen /> : <LuEyeClosed />}
                             </button>
                         </div>
                     </div>

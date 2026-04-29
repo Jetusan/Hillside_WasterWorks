@@ -1,31 +1,111 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './home.css';
+import { FaRegUser } from "react-icons/fa";
+import { PiUserCheckBold } from "react-icons/pi";
+import { TbUserExclamation } from "react-icons/tb";
+import { HiUsers } from "react-icons/hi";
+import { AiOutlineUsergroupAdd } from "react-icons/ai";
+import { MdPayments } from "react-icons/md";
+import { TbFileInvoice } from "react-icons/tb";
+import { TbReportAnalytics } from "react-icons/tb";
+
+interface Customer {
+    id: number;
+    cluster: string;
+    meter_number: string;
+    customer_name: string;
+    is_active: number;
+}
+
+interface Bill {
+    id: number;
+    total_amount_due: number;
+    status: string;
+}
+
+interface Payment {
+    id: number;
+    amount: number;
+}
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [recentBills, setRecentBills] = useState<Bill[]>([]);
+    const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
 
-    const stats = [
-        { label: 'Active Customers', value: '2,847', icon: '👥', trend: '+12%', trendUp: true },
-        { label: 'Monthly Revenue', value: '$48,295', icon: '💰', trend: '+8%', trendUp: true },
-        { label: 'Pending Payments', value: '143', icon: '💳', trend: '-3%', trendUp: false },
-        { label: 'Water Usage (m³)', value: '12,482', icon: '💧', trend: '+5%', trendUp: true },
-    ];
+    // Calculate real stats
+    const stats = {
+        total: customers.length,
+        active: customers.filter(c => c.is_active === 1).length,
+        inactive: customers.filter(c => c.is_active === 0).length,
+        clusters: [...new Set(customers.map(c => c.cluster))].length
+    };
 
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        setLoading(true);
+        try {
+            // Load customers
+            const customerData = await window.electronAPI.customers.getAll();
+            setCustomers(customerData);
+
+            // Load recent bills
+            const billData = await window.electronAPI.bills.getRecent(5);
+            setRecentBills(billData);
+
+            // Load recent payments - use getAll with limit
+            const paymentData = await window.electronAPI.payments.getAll(5);
+            setRecentPayments(paymentData);
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Format recent activities from real data
     const recentActivities = [
-        { id: 1, action: 'New customer registered', name: 'John Smith', time: '5 minutes ago', icon: '👤' },
-        { id: 2, action: 'Payment received', name: 'Sarah Johnson', time: '23 minutes ago', amount: '$245.00', icon: '💵' },
-        { id: 3, action: 'Meter reading submitted', name: 'Zone A-12', time: '1 hour ago', reading: '1,245 m³', icon: '📊' },
-        { id: 4, action: 'Bill generated', name: 'Michael Chen', time: '2 hours ago', amount: '$189.50', icon: '📄' },
-        { id: 5, action: 'Service request', name: 'Unit 4B - Leak', time: '3 hours ago', priority: 'High', icon: '🔧' },
-    ];
+        ...recentBills.map(bill => ({
+            id: bill.id,
+            action: 'Bill generated',
+            name: `Invoice #${bill.id}`,
+            time: 'Recently',
+            amount: `₱${bill.total_amount_due.toFixed(2)}`,
+            icon: <TbFileInvoice />
+        })),
+        ...recentPayments.map(payment => ({
+            id: payment.id,
+            action: 'Payment received',
+            name: `Payment #${payment.id}`,
+            time: 'Recently',
+            amount: `₱${payment.amount.toFixed(2)}`,
+            icon: <MdPayments />
+        }))
+    ].slice(0, 5); // Limit to 5 most recent
 
     const quickActions = [
-        { label: 'Add Customer', icon: '➕', path: '/dashboard/customers' },
-        { label: 'Record Payment', icon: '💳', path: '/dashboard/payments' },
-        { label: 'Generate Bill', icon: '📋', path: '/dashboard/billing' },
-        { label: 'View Reports', icon: '📈', path: '/dashboard/reports' },
+        { label: 'Add Customer', icon: <AiOutlineUsergroupAdd />, path: '/dashboard/customers' },
+        { label: 'Record Payment', icon: <MdPayments />, path: '/dashboard/payments' },
+        { label: 'Generate Bill', icon: <TbFileInvoice />, path: '/dashboard/billing' },
+        { label: 'View Reports', icon: <TbReportAnalytics />, path: '/dashboard/reports' },
     ];
+
+    if (loading) {
+        return (
+            <div className="home-container">
+                <div className="loading-wrapper">
+                    <div className="loading-spinner"></div>
+                    <p>Loading dashboard...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="home-container">
@@ -43,21 +123,30 @@ const Home: React.FC = () => {
 
             {/* Stats Grid */}
             <div className="stats-grid">
-                {stats.map((stat, index) => (
-                    <div 
-                        key={index} 
-                        className="stat-card"
-                    >
-                        <div className="stat-header">
-                            <span className="stat-icon">{stat.icon}</span>
-                            <span className={`stat-trend ${stat.trendUp ? 'trend-up' : 'trend-down'}`}>
-                                {stat.trend}
-                            </span>
-                        </div>
-                        <div className="stat-value">{stat.value}</div>
-                        <div className="stat-label">{stat.label}</div>
+                <div className="stat-card">
+                    <div className="stat-header">
+                        <span className="stat-icon"><FaRegUser /></span>
                     </div>
-                ))}
+                    <div className="stat-value">{stats.total}</div>
+                    <div className="stat-label">Total Customers</div>
+                    <div className="stat-glow"></div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-header">
+                        <span className="stat-icon"><PiUserCheckBold /></span>
+                    </div>
+                    <div className="stat-value">{stats.active}</div>
+                    <div className="stat-label">Active Customers</div>
+                    <div className="stat-glow"></div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-header">
+                        <span className="stat-icon"><TbUserExclamation /></span>
+                    </div>
+                    <div className="stat-value">{stats.inactive}</div>
+                    <div className="stat-label">Inactive Customers</div>
+                    <div className="stat-glow"></div>
+                </div>
             </div>
 
             {/* Main Content Grid */}
@@ -86,34 +175,27 @@ const Home: React.FC = () => {
                         <button className="view-all-link">View All →</button>
                     </div>
                     <div className="activity-list">
-                        {recentActivities.map((activity) => (
-                            <div 
-                                key={activity.id} 
-                                className="activity-item"
-                            >
-                                <div className="activity-icon">{activity.icon}</div>
-                                <div className="activity-content">
-                                    <div className="activity-title">
-                                        <span className="activity-action">{activity.action}</span>
-                                        <span className="activity-name">{activity.name}</span>
-                                    </div>
-                                    <div className="activity-details">
-                                        <span className="activity-time">{activity.time}</span>
-                                        {activity.amount && (
-                                            <span className="activity-badge amount">{activity.amount}</span>
-                                        )}
-                                        {activity.reading && (
-                                            <span className="activity-badge reading">{activity.reading}</span>
-                                        )}
-                                        {activity.priority && (
-                                            <span className={`activity-badge priority ${activity.priority.toLowerCase()}`}>
-                                                {activity.priority}
-                                            </span>
-                                        )}
+                        {recentActivities.length > 0 ? (
+                            recentActivities.map((activity) => (
+                                <div key={activity.id} className="activity-item">
+                                    <div className="activity-icon">{activity.icon}</div>
+                                    <div className="activity-content">
+                                        <div className="activity-title">
+                                            <span className="activity-action">{activity.action}</span>
+                                            <span className="activity-name">{activity.name}</span>
+                                        </div>
+                                        <div className="activity-details">
+                                            <span className="activity-time">{activity.time}</span>
+                                            {activity.amount && (
+                                                <span className="activity-badge amount">{activity.amount}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p className="no-activity">No recent activity</p>
+                        )}
                     </div>
                 </div>
             </div>

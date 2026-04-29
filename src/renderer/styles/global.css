@@ -9,11 +9,30 @@ html, body {
     height: 100%;
     width: 100%;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Hide scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* Hide scrollbar for Chrome, Safari, Opera */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
 }
 
 #root {
     height: 100%;
     width: 100%;
+}
+
+/* Hide scrollbar for all scrollable elements */
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
 }
 
 /* Common utility classes */

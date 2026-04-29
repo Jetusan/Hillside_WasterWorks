@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import AddCustomerModal from './AddCustomerModal';
+import AddCustomerModal from './AddCustomerModal'; // Adjust path as needed
 import './customer.css';
+import { IoSearchSharp } from "react-icons/io5";
+import { FaRegUser } from "react-icons/fa";
+import { PiUserCheckBold } from "react-icons/pi";
+import { TbUserExclamation } from "react-icons/tb";
+import { RiUserAddLine } from "react-icons/ri";
+import { VscPreview } from "react-icons/vsc";
+import { FiEdit3 } from "react-icons/fi";
+import { BsThreeDotsVertical } from "react-icons/bs";
 
 interface Customer {
     id: number;
@@ -15,7 +23,7 @@ const Customer: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
         loadCustomers();
@@ -31,14 +39,6 @@ const Customer: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleOpenModal = () => {
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
     };
 
     const filteredCustomers = customers
@@ -100,8 +100,8 @@ const Customer: React.FC = () => {
                         <p className="customer-subtitle">Manage and view all registered customers</p>
                     </div>
                     <div className="header-right">
-                        <button className="add-customer-btn" onClick={handleOpenModal}>
-                            <span>➕</span> Add Customer
+                        <button className="add-customer-btn" onClick={() => setShowAddModal(true)}>
+                            <span><RiUserAddLine /></span> Add Customer
                         </button>
                     </div>
                 </div>
@@ -110,19 +110,25 @@ const Customer: React.FC = () => {
 
                 <div className="stats-grid">
                     <div className="stat-card">
-                        <div className="stat-header"><span className="stat-icon">👥</span></div>
+                        <div className="stat-header">
+                            <span className="stat-icon"><FaRegUser /></span>
+                        </div>
                         <div className="stat-value">{stats.total}</div>
                         <div className="stat-label">Total Customers</div>
                         <div className="stat-glow"></div>
                     </div>
                     <div className="stat-card">
-                        <div className="stat-header"><span className="stat-icon">✅</span></div>
+                        <div className="stat-header">
+                            <span className="stat-icon"><PiUserCheckBold /></span>
+                        </div>
                         <div className="stat-value">{stats.active}</div>
                         <div className="stat-label">Active Customers</div>
                         <div className="stat-glow"></div>
                     </div>
                     <div className="stat-card">
-                        <div className="stat-header"><span className="stat-icon">❌</span></div>
+                        <div className="stat-header">
+                            <span className="stat-icon"><TbUserExclamation /></span>
+                        </div>
                         <div className="stat-value">{stats.inactive}</div>
                         <div className="stat-label">Inactive Customers</div>
                         <div className="stat-glow"></div>
@@ -131,7 +137,7 @@ const Customer: React.FC = () => {
 
                 <div className="controls-bar">
                     <div className="search-wrapper">
-                        <span className="search-icon">🔍</span>
+                        <span className="search-icon"><IoSearchSharp /></span>
                         <input
                             type="text"
                             placeholder="Search by name, meter number, or cluster..."
@@ -158,7 +164,7 @@ const Customer: React.FC = () => {
                         <thead>
                             <tr>
                                 <th>Cluster</th>
-                                <th>Meter #</th>
+                                <th>Meter Number</th>
                                 <th>Customer Name</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -169,7 +175,7 @@ const Customer: React.FC = () => {
                                 <tr>
                                     <td colSpan={5} className="no-results">
                                         <div className="no-results-content">
-                                            <span className="no-results-icon">🔍</span>
+                                            <span className="no-results-icon"><IoSearchSharp /></span>
                                             <p>No customers found</p>
                                             <p className="no-results-subtitle">Try adjusting your search or filter</p>
                                         </div>
@@ -193,9 +199,9 @@ const Customer: React.FC = () => {
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button className="action-btn view" title="View Details">👁️</button>
-                                                <button className="action-btn edit" title="Edit Customer">✏️</button>
-                                                <button className="action-btn more" title="More Options">⋮</button>
+                                                <button className="action-btn view" title="View Details"><VscPreview /></button>
+                                                <button className="action-btn edit" title="Edit Customer"><FiEdit3 /></button>
+                                                <button className="action-btn more" title="More Options"><BsThreeDotsVertical /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -206,8 +212,8 @@ const Customer: React.FC = () => {
                 </div>
 
                 <AddCustomerModal 
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
                     onSuccess={loadCustomers}
                     customers={customers}
                 />

@@ -107,6 +107,13 @@
 
 .password-input-wrapper {
     position: relative;
+    width: 100%;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding-right: 2.5rem; /* Space for the toggle button */
+    box-sizing: border-box; /* Ensures padding doesn't overflow */
 }
 
 .password-toggle {
@@ -119,6 +126,7 @@
     cursor: pointer;
     font-size: 1.25rem;
     color: #6b7280;
+    z-index: 1;
 }
 
 .login-button {
@@ -187,6 +195,159 @@
 
 .test-credentials strong {
     color: #374151;
+}
+
+/* ============ ANIMATIONS ============ */
+
+/* Fade in animation for the entire login page */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Pulse animation */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Apply animations */
+.login-left {
+    animation: slideInLeft 0.6s ease;
+}
+
+.login-right {
+    animation: slideUp 0.6s ease;
+}
+
+.brand-logo {
+    animation: fadeIn 0.8s ease;
+}
+
+.feature-card {
+    animation: slideUp 0.8s ease 0.3s both;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.feature-list li {
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.feature-list li:hover {
+    transform: translateX(5px);
+    color: white;
+}
+
+.form-group input {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.form-group input:hover {
+    border-color: #93c5fd;
+}
+
+.form-group input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    transform: scale(1.01);
+}
+
+.login-button {
+    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.login-button:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.login-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.password-toggle {
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: #3b82f6;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.login-header h2 {
+    animation: slideUp 0.6s ease 0.1s both;
+}
+
+.login-subtitle {
+    animation: slideUp 0.6s ease 0.2s both;
+}
+
+.form-group {
+    animation: slideUp 0.6s ease 0.3s both;
+}
+
+.login-button {
+    animation: slideUp 0.6s ease 0.4s both;
+}
+
+.test-credentials {
+    animation: fadeIn 0.6s ease 0.5s both;
+    transition: transform 0.2s ease;
+}
+
+.test-credentials:hover {
+    transform: scale(1.02);
+}
+
+/* Message animations */
+.error-message,
+.warning-message,
+.attempts-info,
+.cooldown-info {
+    animation: slideUp 0.3s ease;
+}
+
+/* Logo pulse on hover */
+.brand-logo:hover {
+    animation: pulse 0.5s ease;
 }
 
 @media (max-width: 768px) {
