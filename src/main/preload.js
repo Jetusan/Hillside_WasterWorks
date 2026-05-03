@@ -40,9 +40,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     db: {
-    test: () => ipcRenderer.invoke('db:test'),
-    save: () => ipcRenderer.invoke('db:save')  
-}
+        test: () => ipcRenderer.invoke('db:test'),
+        save: () => ipcRenderer.invoke('db:save')  
+    },
+    logger: {
+        getRecent: (lines) => ipcRenderer.invoke('logger:getRecent', lines),
+        getPath: () => ipcRenderer.invoke('logger:getPath')
+    }
 });
 
     console.log('✅ Preload script loaded');

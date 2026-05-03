@@ -201,7 +201,6 @@ const Customer: React.FC = () => {
                                             <div className="action-buttons">
                                                 <button className="action-btn view" title="View Details"><VscPreview /></button>
                                                 <button className="action-btn edit" title="Edit Customer"><FiEdit3 /></button>
-                                                <button className="action-btn more" title="More Options"><BsThreeDotsVertical /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -210,7 +209,6 @@ const Customer: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-
                 <AddCustomerModal 
                     isOpen={showAddModal}
                     onClose={() => setShowAddModal(false)}

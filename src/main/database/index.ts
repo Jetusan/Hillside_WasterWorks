@@ -1,4 +1,3 @@
-
 import initSqlJs, { Database } from 'sql.js';
 import { app } from 'electron';
 import path from 'path';
@@ -8,6 +7,7 @@ import { UserRepository } from './repositories/userRepository';
 import { CustomerRepository } from './repositories/customerRepository';
 import { BillRepository } from './repositories/billingRepository';
 import { PaymentRepository } from './repositories/paymentRepository';
+import { logger } from '../utils/logger';
 
 let db: Database | null = null;
 let userRepo: UserRepository | null = null;
@@ -15,156 +15,153 @@ let customerRepo: CustomerRepository | null = null;
 let billRepo: BillRepository | null = null;
 let paymentRepo: PaymentRepository | null = null;
 
-// ✅ Add this to track db changes
-function setDb(newDb: Database | null, source: string) {
-    console.log(`🔵🔵🔵 DATABASE SET from: ${source} 🔵🔵🔵`);
-    console.log(`🔵 Old DB: ${(db as any)?.filename || 'null'}`);
-    console.log(`🔵 New DB: ${(newDb as any)?.filename || 'null'}`);
-    db = newDb;
-}
-
-// ✅ FIX: Use a more reliable, consistent database path
 // Priority: 1) env DB_PATH → 2) app.getPath('userData') → 3) process.cwd() fallback
 function getDatabasePath(): string {
-    // Check for environment variable first (useful for development)
     if (process.env.DB_PATH) {
-        console.log('📁 Using DB_PATH from environment:', process.env.DB_PATH);
+        logger.info('Database', 'Using DB_PATH from environment', { path: process.env.DB_PATH });
         return process.env.DB_PATH;
     }
     
-    // Get userData path from Electron
     const userDataPath = app?.getPath?.('userData') || process.cwd();
-    console.log('📁 app.getPath("userData"):', userDataPath);
+    logger.debug('Database', 'User data path resolved', { path: userDataPath });
     
-    // Construct the database path
     const dbPath = path.join(userDataPath, 'billing.db');
-    console.log('📁 Resolved database path:', dbPath);
+    logger.debug('Database', 'Database path resolved', { path: dbPath });
     
     return dbPath;
 }
 
-// ✅ Store the path once at module level
-const dbPath = typeof app !== 'undefined' ? getDatabasePath() : '';
-
 export async function initDatabase(): Promise<Database> {
-    if (db) return db;
-    
-    // ✅ Get the database path at runtime (after app is ready)
-    const resolvedDbPath = getDatabasePath();
-    console.log('📁 Database path:', resolvedDbPath);
-    
-    const SQL = await initSqlJs();
-    
-    // Load or create database
-    if (fs.existsSync(resolvedDbPath)) {
-        const fileBuffer = fs.readFileSync(resolvedDbPath);
-        db = new SQL.Database(fileBuffer);
-        console.log('✅ Database loaded from file:', resolvedDbPath);
-    } else {
-        db = new SQL.Database();
-        console.log('✅ New database created at:', resolvedDbPath);
+    if (db) {
+        logger.info('Database', 'initDatabase called but already initialized, returning existing');
+        return db;
     }
     
-    // Create users table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username VARCHAR(50) NOT NULL UNIQUE,
-            email VARCHAR(100) NOT NULL UNIQUE,
-            password_hash VARCHAR(255) NOT NULL,
-            full_name VARCHAR(100) NOT NULL,
-            role VARCHAR(20) DEFAULT 'staff',
-            is_active INTEGER DEFAULT 1,
-            failed_login_attempts INTEGER DEFAULT 0,
-            locked_until TIMESTAMP,
-            last_login TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+    const resolvedDbPath = getDatabasePath();
+    logger.info('Database', 'Initializing database', { path: resolvedDbPath });
     
-    // Create customers table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS customers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cluster VARCHAR(20) NOT NULL,
-            meter_number VARCHAR(50) UNIQUE NOT NULL,
-            customer_name VARCHAR(100) NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Create bills table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS bills (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            invoice_number VARCHAR(50) UNIQUE NOT NULL,
-            previous_reading DECIMAL(10,2) DEFAULT 0,
-            current_reading DECIMAL(10,2) DEFAULT 0,
-            usage_cubic_meter DECIMAL(10,2) DEFAULT 0,
-            gross_amount DECIMAL(10,2) DEFAULT 0,
-            discount DECIMAL(10,2) DEFAULT 0,
-            net_amount DECIMAL(10,2) DEFAULT 0,
-            penalty DECIMAL(10,2) DEFAULT 0,
-            arrears DECIMAL(10,2) DEFAULT 0,
-            total_amount_due DECIMAL(10,2) DEFAULT 0,
-            amount_paid DECIMAL(10,2) DEFAULT 0,
-            billing_date DATE NOT NULL,
-            billing_period VARCHAR(20),
-            due_date DATE NOT NULL,
-            status VARCHAR(20) DEFAULT 'Unpaid',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    `);
-
-    // Create payments table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            payment_date DATE NOT NULL,
-            or_number VARCHAR(50) NOT NULL,
-            amount DECIMAL(10,2) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    `);
-
-    // Create payment_allocations table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS payment_allocations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            payment_id INTEGER NOT NULL,
-            bill_id INTEGER NOT NULL,
-            amount_applied DECIMAL(10,2) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (payment_id) REFERENCES payments(id),
-            FOREIGN KEY (bill_id) REFERENCES bills(id)
-        )
-    `);
-
-    // Initialize repositories
-    userRepo = new UserRepository(db);
-    customerRepo = new CustomerRepository(db);
-    billRepo = new BillRepository(db);
-    paymentRepo = new PaymentRepository(db);
-
-    // ✅ Create default admin user
-    await createDefaultAdmin(db);
+    try {
+        const SQL = await initSqlJs();
+        
+        // Load or create database
+        if (fs.existsSync(resolvedDbPath)) {
+            const fileBuffer = fs.readFileSync(resolvedDbPath);
+            db = new SQL.Database(fileBuffer);
+            logger.info('Database', 'Database loaded from file', { 
+                path: resolvedDbPath,
+                size: fileBuffer.length 
+            });
+        } else {
+            db = new SQL.Database();
+            logger.info('Database', 'New database created', { path: resolvedDbPath });
+        }
     
-    // Save to disk
-    saveDatabase();
-    
-    console.log('✅ Database initialized successfully!');
-    return db;
+        // Create users table
+        db.run(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                email VARCHAR(100) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                full_name VARCHAR(100) NOT NULL,
+                role VARCHAR(20) DEFAULT 'staff',
+                is_active INTEGER DEFAULT 1,
+                failed_login_attempts INTEGER DEFAULT 0,
+                locked_until TIMESTAMP,
+                last_login TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // Create customers table
+        db.run(`
+            CREATE TABLE IF NOT EXISTS customers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cluster VARCHAR(20) NOT NULL,
+                meter_number VARCHAR(50) UNIQUE NOT NULL,
+                customer_name VARCHAR(100) NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Create bills table
+        db.run(`
+            CREATE TABLE IF NOT EXISTS bills (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                invoice_number VARCHAR(50) UNIQUE NOT NULL,
+                previous_reading DECIMAL(10,2) DEFAULT 0,
+                current_reading DECIMAL(10,2) DEFAULT 0,
+                usage_cubic_meter DECIMAL(10,2) DEFAULT 0,
+                gross_amount DECIMAL(10,2) DEFAULT 0,
+                discount DECIMAL(10,2) DEFAULT 0,
+                net_amount DECIMAL(10,2) DEFAULT 0,
+                penalty DECIMAL(10,2) DEFAULT 0,
+                arrears DECIMAL(10,2) DEFAULT 0,
+                total_amount_due DECIMAL(10,2) DEFAULT 0,
+                amount_paid DECIMAL(10,2) DEFAULT 0,
+                billing_date DATE NOT NULL,
+                billing_period VARCHAR(20),
+                due_date DATE NOT NULL,
+                status VARCHAR(20) DEFAULT 'Unpaid',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
+            )
+        `);
+
+        // Create payments table
+        db.run(`
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                payment_date DATE NOT NULL,
+                or_number VARCHAR(50) NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id)
+            )
+        `);
+
+        // Create payment_allocations table
+        db.run(`
+            CREATE TABLE IF NOT EXISTS payment_allocations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payment_id INTEGER NOT NULL,
+                bill_id INTEGER NOT NULL,
+                amount_applied DECIMAL(10,2) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (payment_id) REFERENCES payments(id),
+                FOREIGN KEY (bill_id) REFERENCES bills(id)
+            )
+        `);
+
+        // Initialize repositories
+        userRepo = new UserRepository(db);
+        customerRepo = new CustomerRepository(db);
+        billRepo = new BillRepository(db);
+        paymentRepo = new PaymentRepository(db);
+        logger.info('Database', 'All repositories initialized successfully');
+
+        // Create default admin user
+        await createDefaultAdmin(db);
+        
+        // Save to disk
+        saveDatabase();
+        logger.info('Database', 'Database initialized successfully', { path: resolvedDbPath });
+        
+        return db;
+        
+    } catch (error) {
+        logger.catchError('Database:init', error, { path: resolvedDbPath });
+        throw error;
+    }
 }
 
-    // ✅ Add this function after initDatabase
-    async function createDefaultAdmin(database: Database): Promise<void> {
+async function createDefaultAdmin(database: Database): Promise<void> {
+    try {
         const stmt = database.prepare("SELECT id FROM users WHERE username = 'admin'");
         const admin = stmt.get();
         stmt.free();
@@ -177,65 +174,77 @@ export async function initDatabase(): Promise<Database> {
                 VALUES (?, ?, ?, ?, ?)
             `, ['admin', 'admin@waterdistrict.com', passwordHash, 'System Administrator', 'admin']);
             
-            console.log('✅ Default admin created: admin / Admin@123');
+            logger.info('Database', 'Default admin created');
         } else {
-            console.log('ℹ️ Admin user already exists');
+            logger.debug('Database', 'Admin user already exists');
         }
+    } catch (error) {
+        logger.catchError('Database:createDefaultAdmin', error);
     }
+}
 
-    export function saveDatabase(): void {
-        if (!db) return;
-        const resolvedDbPath = getDatabasePath();
-        const data = db.export();
-        const buffer = Buffer.from(data);
-        
-        // Ensure directory exists
-        const dir = path.dirname(resolvedDbPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
+export function saveDatabase(): void {
+    if (!db) {
+        logger.warn('Database', 'saveDatabase called but db is null');
+        return;
+    }
+    
+    const resolvedDbPath = getDatabasePath();
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    
+    // Ensure directory exists
+    const dir = path.dirname(resolvedDbPath);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    try {
         fs.writeFileSync(resolvedDbPath, buffer);
-        console.log('💾 Database saved to disk:', resolvedDbPath);
+        logger.debug('Database', 'Database saved to disk', { path: resolvedDbPath });
+    } catch (error) {
+        logger.catchError('Database:saveDatabase', error, { path: resolvedDbPath });
+        throw error;
     }
+}
 
-    export function getDatabase(): Database {
-        if (!db) throw new Error('Database not initialized. Call initDatabase() first.');
-        return db;
+export function getDatabase(): Database {
+    if (!db) throw new Error('Database not initialized. Call initDatabase() first.');
+    return db;
+}
+
+export function getUserRepository(): UserRepository {
+    if (!userRepo) throw new Error('Database not initialized. Call initDatabase() first.');
+    return userRepo;
+}
+
+export function getCustomerRepository(): CustomerRepository {
+    if (!customerRepo) throw new Error('Database not initialized. Call initDatabase() first.');
+    return customerRepo;
+}
+
+export function getBillRepository(): BillRepository {
+    if (!billRepo) throw new Error('Database not initialized');
+    logger.debug('BillRepository', 'getBillRepository called', { 
+        dbFilename: (db as any)?.filename 
+    });
+    return billRepo;
+}
+
+export function getPaymentRepository(): PaymentRepository {
+    if (!paymentRepo) throw new Error('Database not initialized');
+    return paymentRepo;
+}
+
+export function closeDatabase(): void {
+    if (db) {
+        saveDatabase();
+        db.close();
+        db = null;
+        userRepo = null;
+        customerRepo = null;
+        billRepo = null;
+        paymentRepo = null;
+        logger.info('Database', 'Database connection closed');
     }
-
-    export function getUserRepository(): UserRepository {
-        if (!userRepo) throw new Error('Database not initialized. Call initDatabase() first.');
-        return userRepo;
-    }
-
-    export function getCustomerRepository(): CustomerRepository {
-        if (!customerRepo) throw new Error('Database not initialized. Call initDatabase() first.');
-        return customerRepo;
-    }
-
-    export function getBillRepository(): BillRepository {
-        if (!billRepo) throw new Error('Database not initialized');
-        console.log('🔴 getBillRepository - DB filename:', (db as any)?.filename || 'db is null!');
-        console.log('🔴 billRepo.db filename:', (billRepo as any)?.db?.filename || 'no db in repo');
-        return billRepo;
-    }
-
-    export function getPaymentRepository(): PaymentRepository {
-        if (!paymentRepo) throw new Error('Database not initialized');
-        return paymentRepo;
-    }
-
-
-    export function closeDatabase(): void {
-        if (db) {
-            saveDatabase();
-            db.close();
-            db = null;
-            userRepo = null;
-            customerRepo = null;
-            billRepo = null;
-            paymentRepo = null;
-            console.log('✅ Database connection closed');
-        }
-    }
+}

@@ -5,10 +5,15 @@ import { CustomerService } from '../services/customerServices';
 import { BillService } from '../services/billingServices';
 import {PaymentService} from '../services/paymentServices';
 import { LoginCredentials, AuthResponse } from '../../shared/types/auth';
+import { logger } from '../utils/logger';
 
 export function registerAllHandlers(): void {
     console.log('📝 Registering IPC handlers...');
     
+    ipcMain.handle('logger:getRecent', (_, lines: number = 100) => {
+        return logger.getRecentLogs(lines);
+    });
+
     // ✅ Services created AFTER database is ready
     const authService = new AuthService();
     const customerService = new CustomerService();  

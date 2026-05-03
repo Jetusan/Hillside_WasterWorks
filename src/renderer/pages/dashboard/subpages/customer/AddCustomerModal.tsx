@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FaRegUser } from "react-icons/fa";
 
 
 interface Customer {
@@ -121,7 +122,7 @@ const AddCustomerModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, custome
                     <div className="modal-footer">
                         <button type="button" className="modal-cancel-btn" onClick={handleClose} disabled={isSubmitting}>Cancel</button>
                         <button type="submit" className="modal-submit-btn" disabled={isSubmitting}>
-                            {isSubmitting ? 'Adding...' : <><span>➕</span> Add Customer</>}
+                            {isSubmitting ? 'Adding...' : <><span><FaRegUser/></span> Add Customer</>}
                         </button>
                     </div>
                 </form>

@@ -551,7 +551,7 @@
     cursor: not-allowed;
 }
 
-/* ===== FIX: Modal table container ===== */
+/* ===== UPDATED: Modal table container ===== */
 .modal-body > .table-container {
     display: flex !important;
     flex-direction: column !important;
@@ -574,38 +574,40 @@
     flex: 1 !important;
     overflow: auto !important;
     min-height: 0 !important;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.modal-body .table-scroll::-webkit-scrollbar {
-    display: none;
 }
 
 .modal-body .data-table {
-    width: 100%;
-    min-width: 900px;
+    width: max(100%, 100%);  /* Ensures table fills container */
+    min-width: 900px;  /* Minimum width before horizontal scroll */
+    table-layout: fixed;  /* REQUIRED for column widths to work */
+    border-collapse: collapse;
 }
 
-.modal-body .data-table th {
-    white-space: nowrap;
-    padding: 0.75rem 1rem;
-    background: #f1f5f9;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #475569;
-    text-align: left;
-    border-bottom: 2px solid #e2e8f0;
+.modal-body .data-table thead {
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
+.modal-body .data-table th {
+    padding: 0.75rem 0.5rem;
+    background: #f1f5f9;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #475569;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .modal-body .data-table td {
-    padding: 0.625rem 1rem;
+    padding: 0.5rem 0.5rem;
     border-bottom: 1px solid #f1f5f9;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .modal-body .data-table tbody tr:hover {
@@ -622,6 +624,32 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     flex-shrink: 0;
+}
+
+/* Column Resizer Handle */
+.resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: rgba(0, 0, 0, 0.05);
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.data-table th:hover .resizer {
+    opacity: 1;
+}
+
+.resizer:hover,
+.resizer.isResizing {
+    background: #3b82f6;
+    opacity: 1;
+    width: 3px;
 }
 
 /* Table Input */

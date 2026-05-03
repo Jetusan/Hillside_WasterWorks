@@ -246,12 +246,57 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
     
     // FIX: Empty dependency array to prevent recreating columns on every render
     const columns = useMemo(() => [
-        columnHelper.accessor('cluster', {header: 'Cluster',}),
-        columnHelper.accessor('customer_name', {header: 'Customer Name',}),
-        columnHelper.accessor('meter_number', { header: 'Meter Number' }),
-        columnHelper.accessor('previous_reading', { header: 'Previous Reading' }),
+        columnHelper.accessor('cluster', {
+            header: 'Cluster',
+            size: 80,  // Fixed width
+            minSize: 60,
+        }),
+        columnHelper.accessor('customer_name', {
+            header: 'Customer Name',
+            size: 180,
+            minSize: 120,
+        }),
+        columnHelper.accessor('meter_number', { 
+            header: 'Meter Number',
+            size: 180,
+            minSize: 100,
+        }),
+        columnHelper.accessor('previous_reading', { 
+            header: 'Previous Reading',
+            size: 100,
+            minSize: 110,
+            cell: info => {
+                const rowId = info.row.original.id;
+                const value = info.getValue();
+                
+                return (
+                    <input
+                        type="number"
+                        className="table-input"
+                        value={value || ''}
+                        onChange={(e) => {
+                            const newValue = parseFloat(e.target.value) || 0;
+                            
+                            setClusterCustomers(prev =>
+                                prev.map(customer =>
+                                    customer.id === rowId
+                                        ? { ...customer, previous_reading: newValue, isCalculated: false }
+                                        : customer
+                                )
+                            );
+                        }}
+                        placeholder="0"
+                        onClick={(e) => e.stopPropagation()}
+                        style={value === 0 ? { background: '#ffffff', borderColor: '#ffffff' } : {}}
+                        title={value === 0 ? "No previous reading found. You can enter it manually." : "Auto-fetched from last bill. You can edit if needed."}
+                    />
+                );
+            },
+        }),
         columnHelper.accessor('current_reading', {
             header: 'Current Reading',
+            size: 140,
+            minSize: 110,
             cell: info => {
                 const rowId = info.row.original.id;
                 const prevReading = info.row.original.previous_reading;
@@ -274,21 +319,21 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                                 )
                             );
                             
-                            // Auto-calculate if valid
                             const currentVal = parseFloat(newValue);
                             if (newValue && currentVal > prevReading) {
-                                // Pass values directly to avoid stale state
                                 setTimeout(() => calculateBillForRow(rowId, newValue, currentDiscount, currentPenalty), 100);
                             }
                         }}
                         placeholder="0"
-                        onClick={(e) => e.stopPropagation()} // Prevent modal close
+                        onClick={(e) => e.stopPropagation()}
                     />
                 );
             },
         }),
         columnHelper.accessor('discount', {
             header: 'Discount (cu.m)',
+            size: 140,
+            minSize: 110,
             cell: info => {
                 const rowId = info.row.original.id;
                 const currentReading = info.row.original.current_reading?.toString() || '';
@@ -311,20 +356,21 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                                 )
                             );
                             
-                            // Auto-calculate if valid
                             const currentVal = parseFloat(currentReading);
                             if (currentReading && currentVal > prevReading) {
                                 setTimeout(() => calculateBillForRow(rowId, currentReading, newValue, currentPenalty), 100);
                             }
                         }}
                         placeholder="0"
-                        onClick={(e) => e.stopPropagation()} // Prevent modal close
+                        onClick={(e) => e.stopPropagation()}
                     />
                 );
             },
         }),
         columnHelper.accessor('penalty', {
             header: 'Penalty (₱)',
+            size: 120,
+            minSize: 90,
             cell: info => {
                 const rowId = info.row.original.id;
                 const currentReading = info.row.original.current_reading?.toString() || '';
@@ -347,24 +393,27 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                                 )
                             );
                             
-                            // Auto-calculate if valid
                             const currentVal = parseFloat(currentReading);
                             if (currentReading && currentVal > prevReading) {
                                 setTimeout(() => calculateBillForRow(rowId, currentReading, currentDiscount, newValue), 100);
                             }
                         }}
                         placeholder="0"
-                        onClick={(e) => e.stopPropagation()} // Prevent modal close
+                        onClick={(e) => e.stopPropagation()}
                     />
                 );
             },
         }),
         columnHelper.accessor('arrears', {
             header: 'Arrears',
+            size: 100,
+            minSize: 80,
             cell: info => formatCurrency(info.getValue()),
         }),
         columnHelper.accessor('totalDue', {
             header: 'Total Due',
+            size: 120,
+            minSize: 100,
             cell: info => {
                 const value = info.getValue();
                 return value > 0 ? (
@@ -374,8 +423,9 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                 );
             },
         }),
-    ], []); // FIXED: Empty dependency array - columns don't need to be recreated
+    ], []);
 
+    // Update the table configuration to use column sizing
     const table = useReactTable({
         data: clusterCustomers,
         columns,
@@ -387,6 +437,8 @@ const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        enableColumnResizing: true,  // Enable column resizing
+        columnResizeMode: 'onChange',  // Resize as user drags
     });
 
     if (!isOpen) return null;
