@@ -257,7 +257,7 @@ const Billing: React.FC = () => {
                         <tr>
                             <th>#</th>
                             <th>Customer Name</th>
-                            <th>Meter #</th>
+                            <th>Meter Number</th>
                             <th>Previous</th>
                             <th>Current</th>
                             <th>Usage (m³)</th>
@@ -466,10 +466,10 @@ const Billing: React.FC = () => {
                                 <table className="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Invoice #</th>
+                                            <th>Invoice Number</th>
                                             <th>Customer</th>
                                             <th>Cluster</th>
-                                            <th>Meter #</th>
+                                            <th>Meter Number</th>
                                             <th>Billing Date</th>
                                             <th>Due Date</th>
                                             <th>Amount</th>
@@ -563,9 +563,8 @@ const Billing: React.FC = () => {
                                         <table className="data-table">
                                             <thead>
                                                 <tr>
-                                                    <th>#</th>
                                                     <th>Customer</th>
-                                                    <th>Meter #</th>
+                                                    <th>Meter Number</th>
                                                     <th>Previous</th>
                                                     <th>Current</th>
                                                     <th>Usage (m³)</th>
@@ -576,7 +575,6 @@ const Billing: React.FC = () => {
                                             <tbody>
                                                 {selectedBatch.bills.map((bill: any, index: number) => (
                                                     <tr key={bill.id}>
-                                                        <td>{index + 1}</td>
                                                         <td>
                                                             <div className="customer-cell">
                                                                 <span className="customer-avatar-small">
